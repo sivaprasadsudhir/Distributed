@@ -3,7 +3,6 @@ package gmaj
 import (
 	"errors"
 	"time"
-
 	"github.com/r-medina/gmaj/gmajpb"
 	"github.com/r-medina/gmaj/internal/chord"
 
@@ -54,6 +53,17 @@ func (node *Node) setSuccessorRPC(remoteNode, newSucc *gmajpb.Node) error {
 	}
 
 	_, err = client.SetSuccessor(context.Background(), newSucc)
+	return err
+}
+
+// setSuccessor2RPC sets the successor2 ID of a remote node.
+func (node *Node) setSuccessor2RPC(remoteNode, newSucc *gmajpb.Node) error {
+	client, err := node.getChordClient(remoteNode)
+	if err != nil {
+		return err
+	}
+
+	_, err = client.SetSuccessor2(context.Background(), newSucc)
 	return err
 }
 
@@ -114,12 +124,37 @@ func (node *Node) getKeyRPC(remoteNode *gmajpb.Node, key string) ([]byte, error)
 
 // putKeyValRPC puts a key/value into a datastore on a remote node.
 func (node *Node) putKeyValRPC(remoteNode *gmajpb.Node, key string, val []byte) error {
+	succ, err := node.getSuccessorRPC(remoteNode)
+	if err != nil {
+		return err
+	}
+	client, err := node.getChordClient(remoteNode)
+	if err != nil {
+		return err
+	}
+	node.putKeyValBackupRPC(succ, key, val)
+
+	_, err = client.PutKeyVal(context.Background(), &gmajpb.KeyVal{Key: key, Val: val})
+	return err
+}
+
+func (node *Node) putKeyValBackupRPC(remoteNode *gmajpb.Node, key string, val []byte) error {
 	client, err := node.getChordClient(remoteNode)
 	if err != nil {
 		return err
 	}
 
-	_, err = client.PutKeyVal(context.Background(), &gmajpb.KeyVal{Key: key, Val: val})
+	_, err = client.PutKeyValBackup(context.Background(), &gmajpb.KeyVal{Key: key, Val: val})
+	return err
+}
+
+func (node *Node) removeKeyValBackupRPC(remoteNode *gmajpb.Node, key string, val []byte) error {
+	client, err := node.getChordClient(remoteNode)
+	if err != nil {
+		return err
+	}
+
+	_, err = client.RemoveKeyValBackup(context.Background(), &gmajpb.KeyVal{Key: key, Val: val})
 	return err
 }
 

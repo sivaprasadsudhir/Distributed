@@ -51,9 +51,10 @@ type ChordClient interface {
 	// SetPredecessor sets Node as the predeccessor. This function does not do
 	// any validation.
 	SetPredecessor(ctx context.Context, in *gmajpb.Node, opts ...grpc.CallOption) (*gmajpb.MT, error)
-	// SetPredecessor sets Node as the successor. This function does not do any
+	// SetSuccessor sets Node as the successor. This function does not do any
 	// validation.
 	SetSuccessor(ctx context.Context, in *gmajpb.Node, opts ...grpc.CallOption) (*gmajpb.MT, error)
+	SetSuccessor2(ctx context.Context, in *gmajpb.Node, opts ...grpc.CallOption) (*gmajpb.MT, error)
 	// Notify notifies Chord that Node thinks it is our predecessor. This has
 	// the potential to initiate the transferring of keys.
 	Notify(ctx context.Context, in *gmajpb.Node, opts ...grpc.CallOption) (*gmajpb.MT, error)
@@ -67,6 +68,8 @@ type ChordClient interface {
 	GetKey(ctx context.Context, in *gmajpb.Key, opts ...grpc.CallOption) (*gmajpb.Val, error)
 	// PutKeyVal writes a key value pair to the node.
 	PutKeyVal(ctx context.Context, in *gmajpb.KeyVal, opts ...grpc.CallOption) (*gmajpb.MT, error)
+	PutKeyValBackup(ctx context.Context, in *gmajpb.KeyVal, opts ...grpc.CallOption) (*gmajpb.MT, error)
+	RemoveKeyValBackup(ctx context.Context, in *gmajpb.KeyVal, opts ...grpc.CallOption) (*gmajpb.MT, error)
 	// TransferKeys tells a node to transfer keys in a specified range to
 	// another node.
 	TransferKeys(ctx context.Context, in *gmajpb.TransferKeysReq, opts ...grpc.CallOption) (*gmajpb.MT, error)
@@ -110,6 +113,15 @@ func (c *chordClient) SetPredecessor(ctx context.Context, in *gmajpb.Node, opts 
 func (c *chordClient) SetSuccessor(ctx context.Context, in *gmajpb.Node, opts ...grpc.CallOption) (*gmajpb.MT, error) {
 	out := new(gmajpb.MT)
 	err := grpc.Invoke(ctx, "/chord.Chord/SetSuccessor", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *chordClient) SetSuccessor2(ctx context.Context, in *gmajpb.Node, opts ...grpc.CallOption) (*gmajpb.MT, error) {
+	out := new(gmajpb.MT)
+	err := grpc.Invoke(ctx, "/chord.Chord/SetSuccessor2", in, out, c.cc, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -161,6 +173,25 @@ func (c *chordClient) PutKeyVal(ctx context.Context, in *gmajpb.KeyVal, opts ...
 	return out, nil
 }
 
+func (c *chordClient) PutKeyValBackup(ctx context.Context, in *gmajpb.KeyVal, opts ...grpc.CallOption) (*gmajpb.MT, error) {
+	out := new(gmajpb.MT)
+	err := grpc.Invoke(ctx, "/chord.Chord/PutKeyValBackup", in, out, c.cc, opts...)
+	if err != nil {
+		fmt.Printf("%v\n", err)
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *chordClient) RemoveKeyValBackup(ctx context.Context, in *gmajpb.KeyVal, opts ...grpc.CallOption) (*gmajpb.MT, error) {
+	out := new(gmajpb.MT)
+	err := grpc.Invoke(ctx, "/chord.Chord/RemoveKeyValBackup", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *chordClient) TransferKeys(ctx context.Context, in *gmajpb.TransferKeysReq, opts ...grpc.CallOption) (*gmajpb.MT, error) {
 	out := new(gmajpb.MT)
 	err := grpc.Invoke(ctx, "/chord.Chord/TransferKeys", in, out, c.cc, opts...)
@@ -196,6 +227,8 @@ type ChordServer interface {
 	GetKey(context.Context, *gmajpb.Key) (*gmajpb.Val, error)
 	// PutKeyVal writes a key value pair to the node.
 	PutKeyVal(context.Context, *gmajpb.KeyVal) (*gmajpb.MT, error)
+	PutKeyValBackup(context.Context, *gmajpb.KeyVal) (*gmajpb.MT, error)
+	RemoveKeyValBackup(context.Context, *gmajpb.KeyVal) (*gmajpb.MT, error)
 	// TransferKeys tells a node to transfer keys in a specified range to
 	// another node.
 	TransferKeys(context.Context, *gmajpb.TransferKeysReq) (*gmajpb.MT, error)
@@ -367,6 +400,44 @@ func _Chord_PutKeyVal_Handler(srv interface{}, ctx context.Context, dec func(int
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Chord_PutKeyValBackup_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(gmajpb.KeyVal)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ChordServer).PutKeyValBackup(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/chord.Chord/PutKeyValBackup",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ChordServer).PutKeyValBackup(ctx, req.(*gmajpb.KeyVal))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Chord_RemoveKeyValBackup_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(gmajpb.KeyVal)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ChordServer).RemoveKeyValBackup(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/chord.Chord/RemoveKeyValBackup",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ChordServer).RemoveKeyValBackup(ctx, req.(*gmajpb.KeyVal))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+
+
 func _Chord_TransferKeys_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(gmajpb.TransferKeysReq)
 	if err := dec(in); err != nil {
@@ -424,6 +495,14 @@ var _Chord_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "PutKeyVal",
 			Handler:    _Chord_PutKeyVal_Handler,
+		},
+		{
+			MethodName: "PutKeyValBackup",
+			Handler:    _Chord_PutKeyValBackup_Handler,
+		},
+		{
+			MethodName: "RemoveKeyValBackup",
+			Handler:    _Chord_RemoveKeyValBackup_Handler,
 		},
 		{
 			MethodName: "TransferKeys",

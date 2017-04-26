@@ -1,6 +1,3 @@
-(1hr)
-Maintain succ.succ
-Make RPC endpoints for it
 
 (1hr)
 Store succ's replica thing

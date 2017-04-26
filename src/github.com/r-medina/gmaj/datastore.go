@@ -88,16 +88,50 @@ func (node *Node) putKeyVal(keyVal *gmajpb.KeyVal) error {
 	key := keyVal.Key
 	val := keyVal.Val
 
-	node.dsMtx.RLock()
-	_, exists := node.datastore[key]
-	node.dsMtx.RUnlock()
-	if exists {
-		return errors.New("cannot modify an existing value")
-	}
-
+	// node.dsMtx.RLock()
+	// _, exis= node.datastore[key]
+	// node.dsMtx.RUnlock()
+	// if exists {
+	// 	return errors.New("cannot modify an existing value")
+	// }
 	node.dsMtx.Lock()
 	node.datastore[key] = val
 	node.dsMtx.Unlock()
+
+	return nil
+}
+
+func (node *Node) putKeyValBackup(keyVal *gmajpb.KeyVal) error {
+	key := keyVal.Key
+	val := keyVal.Val
+
+	// node.bkMtx.RLock()
+	// _, exists := node.backup[key]
+	// node.bkMtx.RUnlock()
+	// if exists {
+	// 	return errors.New("cannot modify an existing value")
+	// }
+	node.bkMtx.Lock()
+	node.backup[key] = val
+	node.bkMtx.Unlock()
+
+	return nil
+}
+
+func (node *Node) removeKeyValBackup(keyVal *gmajpb.KeyVal) error {
+	key := keyVal.Key
+	// val := keyVal.Val
+
+	node.bkMtx.RLock()
+	_, exists := node.backup[key]
+	node.bkMtx.RUnlock()
+	if !exists {
+		return errors.New("Key does not exist - Panic!!")
+	} 
+	
+	node.bkMtx.RLock()
+	delete(node.backup, key)
+	node.bkMtx.RUnlock()
 
 	return nil
 }
@@ -194,6 +228,10 @@ func (node *Node) DatastoreString() (str string) {
 		buf.WriteString("\n")
 		buf.WriteString(key)
 		buf.WriteString(": ")
+		hashkey, _ := hashKey(key)
+		buf.WriteString(fmt.Sprintf("%v", between(hashkey, node.Id, node.successor.Id)))
+
+		buf.WriteString(": ")
 		if len(val) >= maxLen {
 			buf.WriteString(fmt.Sprintf("%s... (truncated)", val[:maxLen]))
 		} else {
@@ -201,6 +239,42 @@ func (node *Node) DatastoreString() (str string) {
 		}
 	}
 	node.dsMtx.RUnlock()
+
+	return
+}
+
+// DatastoreString write the contents of a node's data store to stdout.
+func (node *Node) BackupString() (str string) {
+	buf := bytes.Buffer{}
+
+	defer func() { str = buf.String() }()
+
+	buf.WriteString(fmt.Sprintf(
+		"Node-%v backup:", IDToString(node.Id),
+	))
+
+	const maxLen = 64
+
+	node.bkMtx.RLock()
+	if len(node.backup) == 0 {
+		defer node.bkMtx.RUnlock()
+		return
+	}
+
+	for key, val := range node.backup {
+		buf.WriteString("\n")
+		buf.WriteString(key)
+		buf.WriteString(": ")
+		hashkey, _ := hashKey(key)
+		buf.WriteString(fmt.Sprintf("%v", between(hashkey, node.Id, node.successor.Id)))
+		buf.WriteString(": ")
+		if len(val) >= maxLen {
+			buf.WriteString(fmt.Sprintf("%s... (truncated)", val[:maxLen]))
+		} else {
+			buf.WriteString(fmt.Sprintf("%s", val))
+		}
+	}
+	node.bkMtx.RUnlock()
 
 	return
 }

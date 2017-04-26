@@ -61,6 +61,18 @@ func (node *Node) SetSuccessor(
 	return mt, nil
 }
 
+// SetSuccessor2 sets the successor2 on the node.
+func (node *Node) SetSuccessor2(
+	ctx context.Context, succ2 *gmajpb.Node,
+) (*gmajpb.MT, error) {
+	node.succ2Mtx.Lock()
+	node.successor2 = succ2
+	node.succ2Mtx.Unlock()
+
+	return mt, nil
+}
+
+
 // Notify is called when remoteNode thinks it's our predecessor.
 func (node *Node) Notify(
 	ctx context.Context, remoteNode *gmajpb.Node,
@@ -121,6 +133,24 @@ func (node *Node) GetKey(ctx context.Context, key *gmajpb.Key) (*gmajpb.Val, err
 // PutKeyVal stores a key value pair on the node.
 func (node *Node) PutKeyVal(ctx context.Context, kv *gmajpb.KeyVal) (*gmajpb.MT, error) {
 	if err := node.putKeyVal(kv); err != nil {
+		return nil, err
+	}
+
+	return mt, nil
+}
+
+// PutKeyVal stores a key value pair on the node.
+func (node *Node) PutKeyValBackup(ctx context.Context, kv *gmajpb.KeyVal) (*gmajpb.MT, error) {
+	if err := node.putKeyValBackup(kv); err != nil {
+		return nil, err
+	}
+
+	return mt, nil
+}
+
+// PutKeyVal stores a key value pair on the node.
+func (node *Node) RemoveKeyValBackup(ctx context.Context, kv *gmajpb.KeyVal) (*gmajpb.MT, error) {
+	if err := node.removeKeyValBackup(kv); err != nil {
 		return nil, err
 	}
 

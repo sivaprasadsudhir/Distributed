@@ -28,9 +28,11 @@ service Chord {
     // other nodes.
     rpc FindSuccessor(gmajpb.ID) returns (gmajpb.Node);
     // GetKey returns the value in node for the given key;
-    rpc GetKey(gmajpb.Key) returns (gmajpb.Val);
+    rpc GetKey(gmajpb.Key) returns (gmajpbi.Val);
     // PutKeyVal writes a key value pair to the node.
     rpc PutKeyVal(gmajpb.KeyVal) returns (gmajpb.MT);
+    rpc PutKeyValBackup(gmajpb.KeyVal) returns (gmajpb.MT);
+    rpc RemoveKeyValBackup(gmajpb.KeyVal) returns (gmajpb.MT);
     // TransferKeys tells a node to transfer keys in a specified range to
     // another node.
     rpc TransferKeys(gmajpb.TransferKeysReq) returns (gmajpb.MT);
