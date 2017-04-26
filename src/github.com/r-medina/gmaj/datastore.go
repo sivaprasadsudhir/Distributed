@@ -229,7 +229,7 @@ func (node *Node) DatastoreString() (str string) {
 		buf.WriteString(key)
 		buf.WriteString(": ")
 		hashkey, _ := hashKey(key)
-		buf.WriteString(fmt.Sprintf("%v", between(hashkey, node.Id, node.successor.Id)))
+		buf.WriteString(fmt.Sprintf("%v", between(hashkey, node.predecessor.Id, node.Id)))
 
 		buf.WriteString(": ")
 		if len(val) >= maxLen {
@@ -265,8 +265,8 @@ func (node *Node) BackupString() (str string) {
 		buf.WriteString("\n")
 		buf.WriteString(key)
 		buf.WriteString(": ")
-		hashkey, _ := hashKey(key)
-		buf.WriteString(fmt.Sprintf("%v", between(hashkey, node.Id, node.successor.Id)))
+		// hashkey, _ := hashKey(key)
+		// buf.WriteString(fmt.Sprintf("%v", between(hashkey, node.Id, node.successor.Id)))
 		buf.WriteString(": ")
 		if len(val) >= maxLen {
 			buf.WriteString(fmt.Sprintf("%s... (truncated)", val[:maxLen]))

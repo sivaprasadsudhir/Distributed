@@ -30,8 +30,11 @@ type Node struct {
 	successor *gmajpb.Node // This Node's successor
 	succMtx   sync.RWMutex
 
-	successor2 *gmajpb.Node // This Node's successor
+	successor2 *gmajpb.Node // This Node's successor's succ
 	succ2Mtx   sync.RWMutex
+
+	predecessor2 *gmajpb.Node // This Node's pred's pred
+	pred2Mtx   sync.RWMutex
 
 	shutdownCh chan struct{}
 
@@ -207,9 +210,45 @@ func (node *Node) join(other *gmajpb.Node) error {
 }
 
 
+func (node *Node) predDied() int {
+	pred := node.predecessor
+	if pred == nil {
+		return 0
+	}
+	if idsEqual(node.Id, pred.Id) {
+		return 0
+	}
+	_, err := node.getPredecessorRPC(pred)
+	if err == nil {
+		return 0
+	}
+
+
+	// replicas stuff
+	for k, v := range node.backup {
+    	node.datastore[k] = v
+    	node.putKeyValBackupRPC(node.successor, k, v)
+	}
+	node.backup = make(map[string][]byte)
+
+	node.setSuccessorRPC(node.predecessor2, node.Node)
+	node.predecessor = node.predecessor2
+	node.requestAllDataRPC(node.predecessor, "")
+
+
+	return 1
+}
+
+
 // stabilize attempts to stabilize a node.
 // This is an implementation of the psuedocode from figure 7 of chord paper.
 func (node *Node) stabilize() {
+
+	if node.predDied() == 1 {
+		return
+	}
+
+
 	node.succMtx.RLock()
 	_succ := node.successor
 	if _succ == nil {
@@ -241,21 +280,21 @@ func (node *Node) stabilize() {
 			node.succMtx.Lock()
 			node.successor = succ
 			node.succMtx.Unlock()
-			// 2 phase commit (lol)
-			for key, val := range node.datastore {
-				hashkey, _ := hashKey(key)
-				if(between(hashkey, succ.Id, _succ.Id)){
-					delete(node.datastore, key)
-					node.putKeyValRPC(succ, key, val)
-				} else {
-					if(idsEqual(_succ.Id, node.Id)) {
-						delete(node.backup, key)
-					} else {
-						node.removeKeyValBackupRPC(_succ, key, val)
-					}
-					node.putKeyValBackupRPC(succ, key, val)
-				}
-			}
+			// 2 phase commit
+			// for key, val := range node.datastore {
+			// 	hashkey, _ := hashKey(key)
+			// 	if(between(hashkey, succ.Id, _succ.Id)){
+			// 		delete(node.datastore, key)
+			// 		node.putKeyValRPC(succ, key, val)
+			// 	} else {
+			// 		if(idsEqual(_succ.Id, node.Id)) {
+			// 			delete(node.backup, key)
+			// 		} else {
+			// 			node.removeKeyValBackupRPC(_succ, key, val)
+			// 		}
+			// 		node.putKeyValBackupRPC(succ, key, val)
+			// 	}
+			// }
 			// remove whatever from my datastore whatever has hash >= succ ka
 			// send entire data to new node
 			// send removed to old successor
@@ -266,6 +305,23 @@ func (node *Node) stabilize() {
 	// TODO(r-medina): handle error (necessary?)
 	_ = node.notifyRPC(_succ, node.Node)
 
+	node.predMtx.RLock()
+	_pred := node.predecessor
+	if _pred == nil {
+		node.predMtx.RUnlock()
+		return
+	}
+	node.predMtx.RUnlock()
+
+
+	pred2, err := node.getPredecessorRPC(_pred)
+	if err == nil {
+		node.pred2Mtx.Lock()
+		node.predecessor2 = pred2
+		node.pred2Mtx.Unlock()
+	}
+
+
 	return
 }
 
@@ -273,27 +329,52 @@ func (node *Node) stabilize() {
 // implementation of the psuedocode from figure 7 of chord paper.
 func (node *Node) notify(remoteNode *gmajpb.Node) {
 	node.predMtx.Lock()
+	// node.succMtx.Lock()
+	// node.dsMtx.Lock()
+	// node.bkMtx.Lock()
+
+	// defer node.succMtx.Lock()
+	// defer node.dsMtx.Lock()
+	// defer node.bkMtx.Lock()
 	defer node.predMtx.Unlock()
 
 	// We only update predecessor if it is not us (i.e. we are only one in the
 	// circle) since we are guaranteed that each node's successor link is
 	// correct.
-	if !(node.predecessor == nil ||
-		between(remoteNode.Id, node.predecessor.Id, node.Id)) {
+	if node.predecessor == nil {
+		node.predecessor = remoteNode
 		return
 	}
+	
+	if ! between(remoteNode.Id, node.predecessor.Id, node.Id) {
+		return
+	}
+	// at this point must be a join
+	fmt.Printf("INFO: %v %v %v\n", IDToString(node.Id), IDToString(remoteNode.Id), IDToString(node.predecessor.Id))
 
-	var prevID []byte
-	if node.predecessor != nil {
-		prevID = node.predecessor.Id
+	for key, val := range node.backup {
+		fmt.Printf("Backup sent %v", key)
+		node.putKeyValBackupRPC(remoteNode, key, val)
+	}
+	node.backup = make(map[string][]byte)
+
+
+	temp := make(map[string]int)
+	for key, val := range node.datastore {
+		hashkey, _ := hashKey(key)
+		if(!between(hashkey, remoteNode.Id, node.Id)){
+			temp[key] = 1;
+			fmt.Printf("Data sent %v", key)
+			node.putKeyValRPC(remoteNode, key, val)
+			node.removeKeyValBackupRPC(node.successor, key, val)
+		}
 	}
 
-	// Update predecessor and transfer keys.
+	for key, _ := range temp {
+		delete(node.datastore, key)
+	}
+
 	node.predecessor = remoteNode
-
-	if between(node.predecessor.Id, prevID, node.Id) {
-		_ = node.transferKeys(prevID, node.predecessor)
-	}
 }
 
 // findSuccessor finds the node's successor. This implements psuedocode from
@@ -401,22 +482,22 @@ func (node *Node) Shutdown() {
 	// Do nothing if we are our own successor (i.e. we are the only node in the
 	// ring).
 	// node.succ2Mtx.RLock()
-	node.succMtx.RLock()
-	node.predMtx.RLock()
-	pred := node.predecessor
-	succ := node.successor
-	// succ2 := node.successor2
-	node.predMtx.RUnlock()
-	node.succMtx.RUnlock()
-	// node.succ2Mtx.RUnlock()
+	// node.succMtx.RLock()
+	// node.predMtx.RLock()
+	// pred := node.predecessor
+	// succ := node.successor
+	// // succ2 := node.successor2
+	// node.predMtx.RUnlock()
+	// node.succMtx.RUnlock()
+	// // node.succ2Mtx.RUnlock()
 
-	if node.Addr != succ.Addr && pred != nil {
-		_ = node.transferKeys(pred.Id, succ)
-		_ = node.setPredecessorRPC(succ, pred)
-		_ = node.setSuccessorRPC(pred, succ)
-		// _ = node.setSuccessor2RPC(pred, succ2)
-		// _ = node.setSuccessor2RPC(pred, succ2)
-	}
+	// if node.Addr != succ.Addr && pred != nil {
+	// 	_ = node.transferKeys(pred.Id, succ)
+	// 	_ = node.setPredecessorRPC(succ, pred)
+	// 	_ = node.setSuccessorRPC(pred, succ)
+	// 	// _ = node.setSuccessor2RPC(pred, succ2)
+	// 	// _ = node.setSuccessor2RPC(pred, succ2)
+	// }
 
 	node.connMtx.Lock()
 	for _, cc := range node.clientConns {
@@ -431,6 +512,7 @@ func (node *Node) String() string {
 	var succ []byte
 	var succ2 []byte
 	var pred []byte
+	var pred2 []byte
 
 	node.succMtx.RLock()
 	if node.successor != nil {
@@ -444,18 +526,24 @@ func (node *Node) String() string {
 	}
 	node.succ2Mtx.RUnlock()
 
-
 	node.predMtx.RLock()
 	if node.predecessor != nil {
 		pred = node.predecessor.Id
 	}
 	node.predMtx.RUnlock()
 
+	node.pred2Mtx.RLock()
+	if node.predecessor2 != nil {
+		pred2 = node.predecessor2.Id
+	}
+	node.pred2Mtx.RUnlock()
+
 	return fmt.Sprintf(
-		"Node-%v: Address: %s {succ:%v, succ2:%v, pred:%v}",
+		"Node-%v: Address: %s {succ:%v, succ2:%v, pred:%v, pred2:%v}",
 		IDToString(node.Id)[0:2], node.Addr,
-		IDToString(succ)[0:2],
-		IDToString(succ2)[0:2],
-		IDToString(pred)[0:2],
+		IDToString(succ),
+		IDToString(succ2),
+		IDToString(pred),
+		IDToString(pred2),
 	)
 }

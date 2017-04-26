@@ -66,6 +66,7 @@ type ChordClient interface {
 	FindSuccessor(ctx context.Context, in *gmajpb.ID, opts ...grpc.CallOption) (*gmajpb.Node, error)
 	// GetKey returns the value in node for the given key;
 	GetKey(ctx context.Context, in *gmajpb.Key, opts ...grpc.CallOption) (*gmajpb.Val, error)
+	RequestAllData(ctx context.Context, in *gmajpb.Key, opts ...grpc.CallOption) (*gmajpb.Val, error)
 	// PutKeyVal writes a key value pair to the node.
 	PutKeyVal(ctx context.Context, in *gmajpb.KeyVal, opts ...grpc.CallOption) (*gmajpb.MT, error)
 	PutKeyValBackup(ctx context.Context, in *gmajpb.KeyVal, opts ...grpc.CallOption) (*gmajpb.MT, error)
@@ -158,6 +159,15 @@ func (c *chordClient) FindSuccessor(ctx context.Context, in *gmajpb.ID, opts ...
 func (c *chordClient) GetKey(ctx context.Context, in *gmajpb.Key, opts ...grpc.CallOption) (*gmajpb.Val, error) {
 	out := new(gmajpb.Val)
 	err := grpc.Invoke(ctx, "/chord.Chord/GetKey", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *chordClient) RequestAllData(ctx context.Context, in *gmajpb.Key, opts ...grpc.CallOption) (*gmajpb.Val, error) {
+	out := new(gmajpb.Val)
+	err := grpc.Invoke(ctx, "/chord.Chord/RequestAllData", in, out, c.cc, opts...)
 	if err != nil {
 		return nil, err
 	}

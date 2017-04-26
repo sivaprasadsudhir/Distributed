@@ -50,6 +50,17 @@ func (node *Node) SetPredecessor(
 	return mt, nil
 }
 
+// SetPredecessor2 sets the predecessor2 on the node.
+// func (node *Node) SetPredecessor2(
+// 	ctx context.Context, pred2 *gmajpb.Node,
+// ) (*gmajpb.MT, error) {
+// 	node.pred2Mtx.Lock()
+// 	node.predecessor2 = pred2
+// 	node.pred2Mtx.Unlock()
+
+// 	return mt, nil
+// }
+
 // SetSuccessor sets the successor on the node.
 func (node *Node) SetSuccessor(
 	ctx context.Context, succ *gmajpb.Node,
@@ -129,6 +140,19 @@ func (node *Node) GetKey(ctx context.Context, key *gmajpb.Key) (*gmajpb.Val, err
 
 	return &gmajpb.Val{Val: val}, nil
 }
+
+// GetKey returns the value of the key requested at the node.
+func (node *Node) RequestAllData(ctx context.Context, key *gmajpb.Key) (*gmajpb.Val, error) {
+
+	node.dsMtx.RLock()
+	for k, val := range node.datastore {
+		node.putKeyValBackupRPC(node.successor, k, val)
+	}
+	node.dsMtx.RUnlock()
+
+	return &gmajpb.Val{Val: nil}, nil
+}
+
 
 // PutKeyVal stores a key value pair on the node.
 func (node *Node) PutKeyVal(ctx context.Context, kv *gmajpb.KeyVal) (*gmajpb.MT, error) {
