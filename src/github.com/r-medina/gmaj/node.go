@@ -48,6 +48,8 @@ type Node struct {
 
 	clientConns map[string]*clientConn
 	connMtx     sync.RWMutex
+
+	lbMtx 		sync.RWMutex
 }
 
 var _ chord.ChordServer = (*Node)(nil)

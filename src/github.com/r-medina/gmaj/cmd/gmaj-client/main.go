@@ -89,3 +89,13 @@ func getKey(*kingpin.ParseContext) error {
 
 	return nil
 }
+
+func getBackupKey(*kingpin.ParseContext) error {
+	key := config.get.key
+	resp, err := config.client.Get(context.Background(), &gmajpb.GetRequest{Key: key})
+	app.FatalIfError(err, "getting key %q failed", key)
+
+	fmt.Printf("%s", resp.Value)
+
+	return nil
+}

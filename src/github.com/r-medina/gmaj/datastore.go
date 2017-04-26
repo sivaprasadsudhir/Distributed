@@ -84,6 +84,17 @@ func (node *Node) getKey(key string) ([]byte, error) {
 	return val, nil
 }
 
+func (node *Node) getBackupKey(key string) ([]byte, error) {
+	node.bkMtx.RLock()
+	val, ok := node.backup[key]
+	node.bkMtx.RUnlock()
+	if !ok {
+		return nil, errors.New("key does not exist")
+	}
+
+	return val, nil
+}
+
 func (node *Node) putKeyVal(keyVal *gmajpb.KeyVal) error {
 	key := keyVal.Key
 	val := keyVal.Val

@@ -2,9 +2,9 @@ package gmaj
 
 import (
 	"errors"
-
+	"math/rand"
 	"github.com/r-medina/gmaj/gmajpb"
-
+	"fmt"
 	"golang.org/x/net/context"
 )
 
@@ -133,7 +133,32 @@ func (node *Node) FindSuccessor(
 
 // GetKey returns the value of the key requested at the node.
 func (node *Node) GetKey(ctx context.Context, key *gmajpb.Key) (*gmajpb.Val, error) {
+	node.lbMtx.RLock()
+	defer node.lbMtx.RUnlock()
+
+	rand_no := rand.Float64()
+
+	if rand_no < 0.5 {
+		fmt.Printf("Being routed to Backup\n")
+		val, err := node.getBackupKeyRPC(node.successor, key.Key)
+		if err != nil {
+			return nil, err
+		}
+		return &gmajpb.Val{Val: val}, nil
+	}
+
 	val, err := node.getKey(key.Key)
+	if err != nil {
+		return nil, err
+	}
+
+	return &gmajpb.Val{Val: val}, nil
+}
+
+// GetKey returns the value of the key requested at the node.
+func (node *Node) GetBackupKey(ctx context.Context, key *gmajpb.Key) (*gmajpb.Val, error) {
+
+	val, err := node.getBackupKey(key.Key)
 	if err != nil {
 		return nil, err
 	}
@@ -156,9 +181,14 @@ func (node *Node) RequestAllData(ctx context.Context, key *gmajpb.Key) (*gmajpb.
 
 // PutKeyVal stores a key value pair on the node.
 func (node *Node) PutKeyVal(ctx context.Context, kv *gmajpb.KeyVal) (*gmajpb.MT, error) {
+	node.lbMtx.Lock()
+	defer node.lbMtx.Unlock()
+
 	if err := node.putKeyVal(kv); err != nil {
 		return nil, err
 	}
+
+	node.putKeyValBackupRPC(node.successor, kv.Key, kv.Val)
 
 	return mt, nil
 }

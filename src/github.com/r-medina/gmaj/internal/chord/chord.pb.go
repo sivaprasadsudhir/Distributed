@@ -66,6 +66,7 @@ type ChordClient interface {
 	FindSuccessor(ctx context.Context, in *gmajpb.ID, opts ...grpc.CallOption) (*gmajpb.Node, error)
 	// GetKey returns the value in node for the given key;
 	GetKey(ctx context.Context, in *gmajpb.Key, opts ...grpc.CallOption) (*gmajpb.Val, error)
+	GetBackupKey(ctx context.Context, in *gmajpb.Key, opts ...grpc.CallOption) (*gmajpb.Val, error)
 	RequestAllData(ctx context.Context, in *gmajpb.Key, opts ...grpc.CallOption) (*gmajpb.Val, error)
 	// PutKeyVal writes a key value pair to the node.
 	PutKeyVal(ctx context.Context, in *gmajpb.KeyVal, opts ...grpc.CallOption) (*gmajpb.MT, error)
@@ -165,6 +166,15 @@ func (c *chordClient) GetKey(ctx context.Context, in *gmajpb.Key, opts ...grpc.C
 	return out, nil
 }
 
+func (c *chordClient) GetBackupKey(ctx context.Context, in *gmajpb.Key, opts ...grpc.CallOption) (*gmajpb.Val, error) {
+	out := new(gmajpb.Val)
+	err := grpc.Invoke(ctx, "/chord.Chord/GetBackupKey", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *chordClient) RequestAllData(ctx context.Context, in *gmajpb.Key, opts ...grpc.CallOption) (*gmajpb.Val, error) {
 	out := new(gmajpb.Val)
 	err := grpc.Invoke(ctx, "/chord.Chord/RequestAllData", in, out, c.cc, opts...)
@@ -235,6 +245,7 @@ type ChordServer interface {
 	FindSuccessor(context.Context, *gmajpb.ID) (*gmajpb.Node, error)
 	// GetKey returns the value in node for the given key;
 	GetKey(context.Context, *gmajpb.Key) (*gmajpb.Val, error)
+	GetBackupKey(context.Context, *gmajpb.Key) (*gmajpb.Val, error)
 	// PutKeyVal writes a key value pair to the node.
 	PutKeyVal(context.Context, *gmajpb.KeyVal) (*gmajpb.MT, error)
 	PutKeyValBackup(context.Context, *gmajpb.KeyVal) (*gmajpb.MT, error)
@@ -392,6 +403,24 @@ func _Chord_GetKey_Handler(srv interface{}, ctx context.Context, dec func(interf
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Chord_GetBackupKey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(gmajpb.Key)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ChordServer).GetBackupKey(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/chord.Chord/GetBackupKey",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ChordServer).GetBackupKey(ctx, req.(*gmajpb.Key))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Chord_PutKeyVal_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(gmajpb.KeyVal)
 	if err := dec(in); err != nil {
@@ -501,6 +530,10 @@ var _Chord_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetKey",
 			Handler:    _Chord_GetKey_Handler,
+		},
+		{
+			MethodName: "GetBackupKey",
+			Handler:    _Chord_GetBackupKey_Handler,
 		},
 		{
 			MethodName: "PutKeyVal",

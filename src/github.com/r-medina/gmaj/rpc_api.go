@@ -134,6 +134,22 @@ func (node *Node) getKeyRPC(remoteNode *gmajpb.Node, key string) ([]byte, error)
 }
 
 // getKeyRPC gets a value from a remote node's datastore for a given key.
+func (node *Node) getBackupKeyRPC(remoteNode *gmajpb.Node, key string) ([]byte, error) {
+	client, err := node.getChordClient(remoteNode)
+	if err != nil {
+		return nil, err
+	}
+
+	val, err := client.GetBackupKey(context.Background(), &gmajpb.Key{Key: key})
+	if err != nil {
+		return nil, err
+	}
+
+	return val.Val, nil
+}
+
+
+// getKeyRPC gets a value from a remote node's datastore for a given key.
 func (node *Node) requestAllDataRPC(remoteNode *gmajpb.Node, key string) ([]byte, error) {
 	client, err := node.getChordClient(remoteNode)
 	if err != nil {
@@ -150,15 +166,16 @@ func (node *Node) requestAllDataRPC(remoteNode *gmajpb.Node, key string) ([]byte
 
 // putKeyValRPC puts a key/value into a datastore on a remote node.
 func (node *Node) putKeyValRPC(remoteNode *gmajpb.Node, key string, val []byte) error {
-	succ, err := node.getSuccessorRPC(remoteNode)
-	if err != nil {
-		return err
-	}
+	// succ, err := node.getSuccessorRPC(remoteNode)
+	// if err != nil {
+	// 	return err
+	// }
 	client, err := node.getChordClient(remoteNode)
 	if err != nil {
 		return err
 	}
-	node.putKeyValBackupRPC(succ, key, val)
+
+	// node.putKeyValBackupRPC(succ, key, val)
 
 	_, err = client.PutKeyVal(context.Background(), &gmajpb.KeyVal{Key: key, Val: val})
 	return err
