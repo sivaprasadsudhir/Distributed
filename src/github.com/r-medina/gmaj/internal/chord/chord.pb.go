@@ -250,6 +250,7 @@ type ChordServer interface {
 	PutKeyVal(context.Context, *gmajpb.KeyVal) (*gmajpb.MT, error)
 	PutKeyValBackup(context.Context, *gmajpb.KeyVal) (*gmajpb.MT, error)
 	RemoveKeyValBackup(context.Context, *gmajpb.KeyVal) (*gmajpb.MT, error)
+	RequestAllData(context.Context, *gmajpb.Key) (*gmajpb.Val, error)
 	// TransferKeys tells a node to transfer keys in a specified range to
 	// another node.
 	TransferKeys(context.Context, *gmajpb.TransferKeysReq) (*gmajpb.MT, error)
@@ -421,6 +422,24 @@ func _Chord_GetBackupKey_Handler(srv interface{}, ctx context.Context, dec func(
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Chord_RequestAllData_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(gmajpb.Key)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ChordServer).RequestAllData(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/chord.Chord/RequestAllData",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ChordServer).RequestAllData(ctx, req.(*gmajpb.Key))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Chord_PutKeyVal_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(gmajpb.KeyVal)
 	if err := dec(in); err != nil {
@@ -534,6 +553,10 @@ var _Chord_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetBackupKey",
 			Handler:    _Chord_GetBackupKey_Handler,
+		},
+		{
+			MethodName: "RequestAllData",
+			Handler:    _Chord_RequestAllData_Handler,
 		},
 		{
 			MethodName: "PutKeyVal",
