@@ -1,0 +1,14 @@
+(1hr)
+Maintain succ.succ
+Make RPC endpoints for it
+
+(1hr)
+Store succ's replica thing
+
+(2hr)
+If one person dies, update finger table, then succ.succ, then their replicas
+
+(0.5hr)
+When req, send to next person prob 0.5
+
+Every 5 sec ping heartbeat thing.
