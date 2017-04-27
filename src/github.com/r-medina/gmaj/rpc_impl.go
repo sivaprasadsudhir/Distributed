@@ -146,7 +146,7 @@ func (node *Node) GetKey(ctx context.Context, key *gmajpb.Key) (*gmajpb.Val, err
 		}
 		return &gmajpb.Val{Val: val}, nil
 	}
-
+	fmt.Printf("Received get request for key: %s\n", key.Key)
 	val, err := node.getKey(key.Key)
 	if err != nil {
 		return nil, err
@@ -157,7 +157,7 @@ func (node *Node) GetKey(ctx context.Context, key *gmajpb.Key) (*gmajpb.Val, err
 
 // GetKey returns the value of the key requested at the node.
 func (node *Node) GetBackupKey(ctx context.Context, key *gmajpb.Key) (*gmajpb.Val, error) {
-
+	fmt.Printf("Received get request for key: %s from backup\n", key.Key)
 	val, err := node.getBackupKey(key.Key)
 	if err != nil {
 		return nil, err
@@ -195,6 +195,7 @@ func (node *Node) PutKeyVal(ctx context.Context, kv *gmajpb.KeyVal) (*gmajpb.MT,
 
 // PutKeyVal stores a key value pair on the node.
 func (node *Node) PutKeyValBackup(ctx context.Context, kv *gmajpb.KeyVal) (*gmajpb.MT, error) {
+	fmt.Printf("Key: %s Val: %s pair added to backup\n", kv.Key, kv.Val)
 	if err := node.putKeyValBackup(kv); err != nil {
 		return nil, err
 	}
